@@ -1,0 +1,1567 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nedialo CRM — Floor Performance</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#081527; --shell:#0a1a2f; --panel:#0f2440; --panel2:#122c4d;
+    --rule:#1d3a5e;
+    --ink:#e9f0f7; --dim:#8ba5c2; --faint:#5f7c9c;
+    --blue:#2e8bd6; --blue-soft:rgba(46,139,214,.14);
+    --gold:#e0b23a; --gold-soft:rgba(224,178,58,.16);
+    --green:#2fb98a; --rust:#e2664a;
+    --ease:cubic-bezier(.2,.7,.3,1);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 620px at 78% -12%, rgba(24,72,128,.42) 0%, transparent 62%),
+      linear-gradient(180deg,#12304f 0%,#0d2440 26%,#0a1b31 58%,#071324 100%);
+    background-attachment:fixed;
+    color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:14px; line-height:1.45; font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased; min-height:100vh;
+  }
+  button{font:inherit;cursor:pointer}
+  select{font:inherit}
+  :focus-visible{outline:2px solid var(--blue); outline-offset:2px; border-radius:3px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+  /* ---------- masthead ---------- */
+  header.mast{
+    background:linear-gradient(105deg,#0b1e37 0%,#123457 55%,#0e2a49 100%);
+    border-bottom:none;
+    padding:15px var(--pad); display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  }
+  .mast{position:relative}
+  .mast::after{
+    content:''; position:absolute; left:0; right:0; bottom:0; height:1px;
+    background:linear-gradient(90deg,rgba(46,139,214,.55) 0%,rgba(126,214,244,.35) 35%,rgba(29,58,94,.9) 75%,rgba(29,58,94,.6) 100%);
+  }
+  .brand{display:flex; align-items:center; gap:14px; position:relative; z-index:1}
+  .brand img{height:26px; width:auto; display:block}
+  .brand .div{width:1px; height:24px; background:var(--rule)}
+  .brand h1{margin:0; font-size:16.5px; font-weight:600; letter-spacing:-.01em}
+  .brand .sub{color:var(--dim); font-size:12.5px; margin-top:1px}
+  .mast .spacer{flex:1}
+  .pill{
+    font-size:12px; color:var(--dim); border:1px solid var(--rule); border-radius:100px;
+    padding:5px 12px; display:inline-flex; align-items:center; gap:7px; background:rgba(255,255,255,.02);
+  }
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--faint)}
+  .pill.live{color:#9fe3c6; border-color:#1c5344; background:rgba(47,185,138,.08)}
+  .pill.live .dot{background:var(--green)}
+
+  /* ---------- actions ---------- */
+  .actions{
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    padding:14px var(--pad); background:rgba(11,28,50,.72); border-bottom:1px solid var(--rule);
+  }
+  .btn{
+    background:var(--panel); border:1px solid var(--rule); border-radius:6px;
+    padding:8px 14px; color:var(--ink);
+    transition:transform .16s var(--ease), box-shadow .18s var(--ease), background .18s var(--ease), border-color .18s var(--ease);
+  }
+  .btn:hover{background:var(--panel2); border-color:#2f5b8c; transform:translateY(-1px); box-shadow:0 6px 16px rgba(0,0,0,.35)}
+  .btn:active{transform:translateY(0) scale(.985); box-shadow:0 1px 4px rgba(0,0,0,.3)}
+  .btn.primary{
+    background:linear-gradient(180deg,#2e8bd6,#1f6fb4); border-color:#3a97e0; color:#fff; font-weight:550;
+  }
+  .btn.primary:hover{box-shadow:0 8px 20px rgba(46,139,214,.35)}
+  .btn.ghost{background:transparent; border-style:dashed; color:var(--dim)}
+  .btn.ghost:hover{color:var(--ink); border-color:var(--rust)}
+  .stamp{color:var(--faint); font-size:12px; margin-left:auto; text-align:right; line-height:1.6}
+  .adminonly{display:inline-flex; gap:10px; flex-wrap:wrap}
+  .btn.signin{padding:6px 13px; font-size:12.5px; background:transparent; border-color:var(--rule); color:var(--dim)}
+  .btn.signin:hover{color:var(--ink); border-color:var(--blue)}
+  .btn.signin.on{color:#9fe3c6; border-color:#1c5344; background:rgba(47,185,138,.08)}
+  .field{margin:12px 0}
+  .field label{display:block; color:var(--dim); font-size:12.5px; margin-bottom:5px}
+  .field input{
+    width:100%; padding:9px 11px; border:1px solid var(--rule); border-radius:6px;
+    background:var(--panel2); color:var(--ink); font:inherit;
+    transition:border-color .18s var(--ease), box-shadow .18s var(--ease);
+  }
+  .field input:focus{border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft); outline:none}
+  .field .hint{color:var(--faint); font-size:11.5px; margin-top:5px}
+  .prog{
+    height:3px; background:var(--rule); border-radius:2px; overflow:hidden; margin-top:12px;
+  }
+  .prog i{display:block; height:100%; background:var(--blue); width:0; transition:width .25s var(--ease)}
+
+  /* ---------- filters ---------- */
+  .filters{
+    position:sticky; top:0; z-index:20; backdrop-filter:blur(8px);
+    background:rgba(9,24,44,.78); border-bottom:1px solid var(--rule);
+    padding:12px var(--pad); display:flex; gap:22px; align-items:center; flex-wrap:wrap;
+  }
+  .fgroup{display:flex; align-items:center; gap:9px}
+  .fgroup label{color:var(--dim); font-size:12.5px}
+  /* custom dropdown — native select popups can't be themed, so this replaces them */
+  .sel{position:relative; min-width:190px}
+  .sel-btn{
+    width:100%; display:flex; align-items:center; gap:10px; text-align:left;
+    border:1px solid var(--rule); background:var(--panel); border-radius:6px;
+    padding:7px 11px; color:var(--ink);
+    transition:border-color .18s var(--ease), box-shadow .18s var(--ease), background .18s var(--ease);
+  }
+  .sel-btn:hover{border-color:#2f5b8c; background:var(--panel2)}
+  .sel.open .sel-btn{border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft)}
+  .sel-val{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .sel-car{
+    width:0; height:0; flex:none; border-left:4.5px solid transparent; border-right:4.5px solid transparent;
+    border-top:5px solid var(--dim); transition:transform .22s var(--ease);
+  }
+  .sel.open .sel-car{transform:rotate(180deg)}
+  .sel-list{
+    position:absolute; top:calc(100% + 6px); left:0; min-width:100%; z-index:70;
+    background:var(--panel2); border:1px solid var(--rule); border-radius:8px;
+    box-shadow:0 18px 40px rgba(0,0,0,.5); padding:5px; max-height:320px; overflow-y:auto;
+    opacity:0; transform:translateY(-6px) scale(.985); pointer-events:none;
+    transition:opacity .17s var(--ease), transform .17s var(--ease);
+  }
+  .sel.open .sel-list{opacity:1; transform:none; pointer-events:auto}
+  .sel-opt{
+    padding:7px 10px; border-radius:5px; white-space:nowrap; cursor:pointer; color:var(--ink);
+    transition:background .12s var(--ease), color .12s var(--ease);
+  }
+  .sel-opt:hover,.sel-opt.cursor{background:#1c4670}
+  .sel-opt.on{background:var(--blue-soft); color:#7cc0f0; font-weight:550}
+  .sel.unset .sel-btn{border-color:var(--gold); box-shadow:0 0 0 3px var(--gold-soft)}
+  .sel-list::-webkit-scrollbar{width:10px}
+  .sel-list::-webkit-scrollbar-thumb{background:#2b547e; border-radius:6px}
+  .sel-list::-webkit-scrollbar-track{background:transparent}
+  .maprow .sel{min-width:0; width:100%}
+  .modal .sel-list{max-height:260px}
+  .dates{display:flex; align-items:center; gap:8px}
+  .dates input[type=date]{
+    border:1px solid var(--rule); background:var(--panel); color:var(--ink);
+    border-radius:6px; padding:6px 9px; font:inherit;
+    transition:border-color .18s var(--ease), box-shadow .18s var(--ease);
+  }
+  .dates input[type=date]:hover{border-color:#2f5b8c}
+  .dates input[type=date]:focus{border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft)}
+  .dates .to{color:var(--faint); font-size:12.5px}
+  .reset{
+    color:var(--blue); background:none; border:none; padding:6px 2px;
+    border-bottom:1px solid transparent; transition:border-color .18s var(--ease), color .18s var(--ease);
+  }
+  .reset:hover{border-bottom-color:var(--blue); color:#5fb0ea}
+  .note{color:var(--faint); font-size:12.5px}
+
+  /* ---------- layout ---------- */
+  /* one column, centred, with the bars' contents lining up with it */
+  :root{--pad:max(24px, calc((100% - 1520px) / 2))}
+  main{padding:0 var(--pad) 70px; max-width:none; margin:0 auto; width:100%}
+  section{margin-top:32px}
+  h2{font-size:15px; font-weight:600; margin:0 0 4px; letter-spacing:-.01em}
+  .lede{color:var(--dim); font-size:12.5px; margin:0 0 14px; max-width:74ch}
+  .panel{
+    background:linear-gradient(180deg,rgba(19,42,74,.92) 0%,rgba(13,32,60,.92) 100%);
+    border:1px solid var(--rule); border-radius:10px;
+    box-shadow:0 1px 0 rgba(255,255,255,.04) inset;
+    transition:border-color .25s var(--ease);
+  }
+  .panel:hover{border-color:#26496f}
+
+  /* ---------- kpis ---------- */
+  .kpis{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    background:linear-gradient(180deg,rgba(20,45,79,.94) 0%,rgba(13,32,60,.94) 100%); border:1px solid var(--rule); border-radius:10px; margin-top:24px; overflow:hidden;
+  }
+  .kpi{
+    padding:17px 19px; border-right:1px solid var(--rule); position:relative;
+    transition:background .22s var(--ease);
+  }
+  .kpi:last-child{border-right:none}
+  .kpi:hover{background:var(--panel2)}
+  .kpi::before{
+    content:''; position:absolute; left:0; top:0; height:2px; width:0; background:var(--blue);
+    transition:width .35s var(--ease);
+  }
+  .kpi:hover::before{width:100%}
+  .kpi .k{color:var(--dim); font-size:12.5px}
+  .kpi .v{font-size:27px; font-weight:600; letter-spacing:-.025em; margin-top:5px}
+  .kpi .n{color:var(--faint); font-size:11.5px; margin-top:3px}
+  .kpi.focus{background:linear-gradient(180deg,rgba(224,178,58,.09),transparent)}
+  .kpi.focus .v{color:var(--gold)}
+  .kpi.focus::before{background:var(--gold); width:100%}
+
+  /* ---------- tables ---------- */
+  .scroll{overflow-x:auto; border-radius:10px}
+  table{border-collapse:collapse; width:100%; font-size:13px}
+  th,td{padding:9px 12px; text-align:right; white-space:nowrap; border-bottom:1px solid var(--rule)}
+  th:first-child,td:first-child{text-align:left; position:sticky; left:0; background:var(--panel)}
+  thead th{
+    color:var(--dim); font-weight:500; font-size:12px; background:var(--panel2);
+    border-bottom:1px solid var(--rule); cursor:pointer; user-select:none;
+    transition:color .16s var(--ease), background .16s var(--ease);
+  }
+  thead th:first-child{background:var(--panel2)}
+  thead th:hover{color:var(--ink); background:#173963}
+  tbody tr{transition:background .16s var(--ease)}
+  tbody tr:hover td, tbody tr:hover td:first-child{background:#15335a}
+  tbody tr:last-child td{border-bottom:none}
+  tr.avg td, tr.avg td:first-child{
+    background:#0b1e36; font-weight:600; color:var(--dim);
+    border-top:1px solid var(--rule); border-bottom:none;
+  }
+  .flag{position:relative}
+  .flag .bar{position:absolute; inset:0; background:var(--rust); transition:opacity .3s var(--ease)}
+  .flag span{position:relative}
+  .over{color:#ff9c80; font-weight:600}
+  .rank{color:var(--faint); width:28px}
+  tr.me td, tr.me td:first-child{background:rgba(224,178,58,.10)}
+  .medal{color:var(--gold); font-weight:600}
+
+  /* ---------- charts ---------- */
+  .grid2{display:grid; grid-template-columns:minmax(320px,1fr) minmax(340px,1.15fr); gap:18px}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  .chartwrap{padding:20px; display:flex; gap:22px; align-items:center; flex-wrap:wrap}
+  .chartbox{width:212px; height:212px; flex:none; position:relative}
+  .legend{flex:1; min-width:220px; font-size:12.5px}
+  .legend .row{
+    display:flex; align-items:center; gap:10px; padding:4px 6px; border-radius:5px;
+    transition:background .16s var(--ease);
+  }
+  .legend .row:hover{background:var(--panel2)}
+  .legend .sw{width:9px; height:9px; border-radius:2px; flex:none}
+  .legend .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .legend .ct{color:var(--faint)}
+  .legend .pc{width:54px; text-align:right; font-weight:600}
+  .boards{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+  @media(max-width:760px){.boards{grid-template-columns:1fr}}
+
+  /* ---------- empty ---------- */
+  .empty{
+    margin-top:44px; padding:46px 38px; background:var(--panel);
+    border:1px solid var(--rule); border-radius:12px; max-width:680px;
+    box-shadow:0 20px 50px rgba(0,0,0,.3);
+  }
+  .empty h2{font-size:20px; margin-bottom:10px}
+  .empty p{color:var(--dim); max-width:62ch}
+  .empty ol{color:var(--dim); padding-left:19px; margin:16px 0 20px}
+  .empty li{margin:6px 0}
+  .empty li::marker{color:var(--gold)}
+
+/* ---------- modal ---------- */
+  .veil{
+    position:fixed; inset:0; background:rgba(4,10,20,.7); backdrop-filter:blur(3px); z-index:60;
+    display:flex; align-items:flex-start; justify-content:center; padding:36px 18px; overflow:auto;
+    animation:veilIn .2s var(--ease);
+  }
+  @keyframes veilIn{from{opacity:0}to{opacity:1}}
+  .modal{
+    background:var(--panel); border:1px solid var(--rule); border-radius:12px;
+    width:100%; max-width:740px; box-shadow:0 30px 70px rgba(0,0,0,.55);
+    animation:modalIn .26s var(--ease);
+  }
+  @keyframes modalIn{from{opacity:0; transform:translateY(14px) scale(.985)}to{opacity:1; transform:none}}
+  .modal .head{padding:22px 26px 15px; border-bottom:1px solid var(--rule)}
+  .modal .head h3{margin:0 0 6px; font-size:16.5px}
+  .modal .head p{margin:0; color:var(--dim); font-size:12.5px}
+  .modal .body{padding:18px 26px; max-height:56vh; overflow:auto}
+  .modal .foot{padding:15px 26px; border-top:1px solid var(--rule); display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .maprow{display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:center; padding:8px 0}
+  .maprow .lbl{font-size:13px}
+  .maprow .hint{color:var(--faint); font-size:11.5px}
+  .maprow select{
+    width:100%; padding:7px 9px; border:1px solid var(--rule); border-radius:6px;
+    background:var(--panel2); color:var(--ink);
+    transition:border-color .18s var(--ease), box-shadow .18s var(--ease);
+  }
+  .maprow select:focus{border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft)}
+  .maprow select.unset{border-color:var(--gold); box-shadow:0 0 0 3px var(--gold-soft)}
+  .bkrow2{
+    display:grid; grid-template-columns:1fr 150px; gap:10px; align-items:center;
+    padding:8px 6px; border-bottom:1px solid var(--rule); border-radius:5px;
+    transition:background .16s var(--ease);
+  }
+  .bkrow2:hover{background:var(--panel2)}
+  .bkrow2 .hd{color:var(--dim); font-size:12px}
+  .bkrow2 input{width:17px; height:17px; accent-color:var(--green); cursor:pointer}
+  .secnote{
+    color:var(--dim); font-size:12.5px; margin:20px 0 8px;
+    padding-top:14px; border-top:1px solid var(--rule);
+  }
+  .secnote:first-child{margin-top:0; padding-top:0; border-top:none}
+  .bkrow{
+    display:grid; grid-template-columns:1fr 116px 116px; gap:10px; align-items:center;
+    padding:8px 6px; border-bottom:1px solid var(--rule); border-radius:5px;
+    transition:background .16s var(--ease);
+  }
+  .bkrow:hover{background:var(--panel2)}
+  .bkrow .hd{color:var(--dim); font-size:12px}
+  .bkrow input{width:17px; height:17px; accent-color:var(--green); cursor:pointer}
+  .cell-c{text-align:center}
+  .steps{padding-left:20px; margin:6px 0 14px; color:var(--dim); font-size:13px}
+  .steps li{margin:9px 0}
+  .steps li::marker{color:var(--blue)}
+  .biglink{
+    color:#7cc0f0; font-weight:600; text-decoration:none;
+    border-bottom:1px solid rgba(124,192,240,.5); padding-bottom:1px;
+  }
+  .biglink:hover{color:#a6d6f7}
+  a.btn{text-decoration:none; display:inline-block}
+  .warnline{color:var(--gold); font-size:12.5px; margin:0}
+  .hidden{display:none}
+
+  /* ---------- printing / save as PDF ---------- */
+  .printhead{display:none}
+  @media print{
+    @page{ size:A4 landscape; margin:0; }
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    html,body{
+      background:linear-gradient(180deg,#12304f 0%,#0d2440 26%,#0a1b31 58%,#071324 100%) !important;
+      background-attachment:fixed !important;
+      color:var(--ink) !important;
+    }
+    body{font-size:10.5px; padding:0}
+    :root{--pad:12mm}
+    .actions, .filters, .mast .pill, .empty, .veil{display:none !important}
+
+    .printhead{
+      display:block; margin:0 0 14px; padding-bottom:10px;
+      border-bottom:1px solid var(--rule); color:var(--dim); font-size:11px;
+    }
+    .printhead strong{color:var(--ink); font-size:13px; display:block; margin-bottom:3px}
+
+    header.mast{padding:12mm 12mm 10px}
+    main{padding:0 12mm 12mm}
+    section{margin-top:14px}
+
+    /* one section per page, so nothing is cut in half */
+    section, .kpis, .panel{page-break-inside:avoid; break-inside:avoid}
+    section{page-break-before:always; break-before:page}
+    section:first-of-type{page-break-before:auto; break-before:auto}
+    tr{page-break-inside:avoid; break-inside:avoid}
+    thead{display:table-header-group}
+
+    .kpi .v{font-size:20px}
+    .kpi::before{display:none}
+    .scroll{overflow:visible !important}
+    table{font-size:9.5px}
+    th,td{padding:5px 7px}
+    th:first-child,td:first-child{position:static}
+    tbody tr:hover td, tbody tr:hover td:first-child{background:transparent !important}
+    .panel:hover{border-color:var(--rule)}
+    .chartwrap{padding:12px}
+    .chartbox{width:190px; height:190px}
+  }
+</style>
+
+<header class="mast">
+  <div class="brand">
+    <img src="data:image/png;base64,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" alt="Nedialo">
+    <span class="div"></span>
+    <div>
+      <h1>Floor performance</h1>
+      <div class="sub">Agent time, call outcomes and qualified leads</div>
+    </div>
+  </div>
+  <span class="spacer"></span>
+  <span class="pill" id="storePill"><span class="dot"></span>Connecting…</span>
+  <button class="btn signin" id="adminBtn">Sign in</button>
+</header>
+
+<div class="actions">
+  <span class="adminonly hidden" id="adminTools">
+    <button class="btn primary" id="upTime">Upload agent time report</button>
+    <button class="btn primary" id="upDisp">Upload call log report</button>
+    <button class="btn primary" id="upLeads">Upload qualified leads</button>
+    <button class="btn" id="editBuckets">Outcome settings</button>
+  </span>
+  <button class="btn" id="exportPdf">Export PDF</button>
+  <button class="btn" id="refreshBtn">Refresh</button>
+  <span class="stamp" id="stamp"></span>
+  <input type="file" id="fileInput" accept=".csv,.txt" class="hidden">
+</div>
+
+<div class="filters hidden" id="filterBar">
+  <div class="fgroup">
+    <label for="agentSel">Agent</label>
+    <select id="agentSel"><option value="__all">All agents</option></select>
+  </div>
+  <div class="fgroup">
+    <label for="campSel">Campaign</label>
+    <select id="campSel"><option value="__all">All campaigns</option></select>
+  </div>
+  <div class="fgroup hidden" id="dateGroup">
+    <label for="rangeSel">Dates</label>
+    <select id="rangeSel">
+      <option value="all">All dates</option>
+      <option value="7">Last 7 days</option>
+      <option value="14">Last 14 days</option>
+      <option value="30">Last 30 days</option>
+      <option value="custom">Custom range</option>
+    </select>
+    <span class="dates hidden" id="customRange">
+      <input type="date" id="fromD"><span class="to">to</span><input type="date" id="toD">
+    </span>
+  </div>
+  <button class="reset" id="resetF">Reset filters</button>
+  <span class="note" id="scopeNote"></span>
+</div>
+
+<main>
+  <div class="empty" id="empty">
+    <h2>No data loaded yet</h2>
+    <p>This dashboard reads from your Oracle database. Once the first reports are loaded it fills in for everyone — nobody else has to upload anything.</p>
+    <ol>
+      <li>Sign in as admin, top right.</li>
+      <li>Upload the agent time report, the call log, and the qualified leads export.</li>
+      <li>Match your column headers once. The match is remembered on this machine.</li>
+    </ol>
+    <p class="note">Everyone else just opens the link and sees whatever you loaded last.</p>
+  </div>
+
+  <div id="dash" class="hidden">
+    <div class="printhead" id="printHead"></div>
+    <div class="kpis" id="kpis"></div>
+
+    <section>
+      <h2>Time and activity</h2>
+      <p class="lede">Break and meeting time are shaded when an agent sits above the team average for the current filter. Deeper shading means further above.</p>
+      <div class="panel scroll"><table id="timeTable"></table></div>
+      <p class="note" id="timeNote" style="margin-top:10px"></p>
+    </section>
+
+    <section>
+      <h2>Call outcomes</h2>
+      <p class="lede">Every figure below follows the filters above.</p>
+      <div class="grid2">
+        <div class="panel">
+          <div class="chartwrap">
+            <div class="chartbox"><canvas id="pie"></canvas></div>
+            <div class="legend" id="pieLegend"></div>
+          </div>
+        </div>
+        <div class="panel scroll"><table id="dispTable"></table></div>
+      </div>
+    </section>
+
+    <section id="leadSection">
+      <h2>Qualified leads</h2>
+      <p class="lede">Counted from the leads export alone, so callers who never appear in the call log still get a row. Qualified means sent to client; other stages are shown but not counted.</p>
+      <div class="panel scroll" style="margin-bottom:18px"><table id="leadAgentTable"></table></div>
+      <div class="panel scroll"><table id="leadTable"></table></div>
+    </section>
+
+    <section>
+      <h2>Rankings</h2>
+      <p class="lede">Success rate is qualified leads divided by connected calls — of the owners a caller actually reached, how many turned into a lead sent to the client. Click any column to sort.</p>
+      <div class="panel scroll"><table id="boardRate"></table></div>
+    </section>
+  </div>
+</main>
+
+<div class="veil hidden" id="veil"><div class="modal" id="modal"></div></div>
+
+<script>
+/* =========================================================================
+   CONFIG — set this once, after you run the schema.
+   ========================================================================= */
+/* API_BASE is everything up to (but not including) /v1/.
+   Take the host from your Database Actions URL and keep the schema alias:
+     https://abcd1234.adb.eu-frankfurt-1.oraclecloudapps.com/ords/nedialo
+   If you serve this page from the same host you can leave it as '' and the
+   relative path below is used instead. */
+const API_BASE = window.NEDIALO_API || 'https://oracleapex.com/ords/nedialo';
+const API = (API_BASE || '') + '/v1';
+
+/* =========================================================================
+   REST client
+   Reads are public. Writes carry an OAuth token that only the admin holds.
+   ========================================================================= */
+let online = false;          // last request succeeded
+let token  = null;           // admin bearer token, this browser session only
+let tokenExp = 0;
+
+function isAdmin(){ return !!token && Date.now() < tokenExp; }
+
+async function apiGet(path){
+  const r = await fetch(API + path, {headers:{'Accept':'application/json'}});
+  if(!r.ok) throw new Error('GET ' + path + ' → ' + r.status);
+  return r.json();
+}
+
+async function apiPost(path, body){
+  if(!isAdmin()) throw new Error('Not signed in');
+  const r = await fetch(API + path, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body: JSON.stringify(body)
+  });
+  if(r.status === 401){ signOut(); throw new Error('Session expired — sign in again'); }
+  if(!r.ok) throw new Error('POST ' + path + ' → ' + r.status + ' ' + (await r.text()).slice(0,200));
+  return true;
+}
+
+/* ORDS issues a token from the schema root, not from /v1. */
+async function signIn(id, secret){
+  const r = await fetch((API_BASE || '') + '/oauth/token', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/x-www-form-urlencoded',
+      'Authorization':'Basic ' + btoa(id + ':' + secret)
+    },
+    body:'grant_type=client_credentials'
+  });
+  if(!r.ok) throw new Error(r.status === 401
+    ? 'That client id or secret was not accepted.'
+    : 'Sign-in failed (' + r.status + ').');
+  const j = await r.json();
+  token = j.access_token;
+  tokenExp = Date.now() + ((j.expires_in || 3600) - 60) * 1000;
+  try{ sessionStorage.setItem('nedialo:tok', JSON.stringify({token, tokenExp})); }catch(e){}
+  paintAdmin();
+}
+
+function signOut(){
+  token = null; tokenExp = 0;
+  try{ sessionStorage.removeItem('nedialo:tok'); }catch(e){}
+  paintAdmin();
+}
+
+function restoreToken(){
+  try{
+    const raw = sessionStorage.getItem('nedialo:tok');
+    if(!raw) return;
+    const j = JSON.parse(raw);
+    if(j.tokenExp > Date.now()){ token = j.token; tokenExp = j.tokenExp; }
+  }catch(e){}
+}
+
+function paintPill(){
+  const el = document.getElementById('storePill');
+  if(online){
+    el.className='pill live';
+    el.innerHTML='<span class="dot"></span>Live · reading from your database';
+  } else {
+    el.className='pill';
+    el.innerHTML='<span class="dot"></span>Cannot reach the database';
+  }
+}
+
+function paintAdmin(){
+  const on = isAdmin();
+  document.getElementById('adminTools').classList.toggle('hidden', !on);
+  const b = document.getElementById('adminBtn');
+  b.textContent = on ? 'Signed in as admin' : 'Sign in';
+  b.classList.toggle('on', on);
+}
+
+/* Column mappings are a per-admin convenience, so they stay on this machine
+   rather than in the shared database. */
+const LS = { map:'nedialo:mapping:v1' };
+function loadMappings(){
+  try{ return JSON.parse(localStorage.getItem(LS.map)) || {time:null,disp:null,leads:null}; }
+  catch(e){ return {time:null,disp:null,leads:null}; }
+}
+function saveMappings(m){ try{ localStorage.setItem(LS.map, JSON.stringify(m)); }catch(e){} }
+
+/* =========================================================================
+   State
+   ========================================================================= */
+const FIELDS = {
+  time: [
+    ['name','Agent name','Name'],
+    ['logged','Logged time','Logged Time'],
+    ['ready','Ready time','Ready (t)'],
+    ['brk','Break time','Break (t)'],
+    ['meeting','Meeting time','Meeting'],
+    ['calls','Logged calls','Logged calls'],
+    ['transfers','Transfers','Transfers'],
+    ['wait','Average wait','Ready: Avg wait'],
+    ['wrap','Average wrap','Ready: Avg wrap'],
+    ['talk','Talk time','Ready: Talk Time']
+  ],
+  disp: [
+    ['agent','Agent name','Agent Name'],
+    ['campaign','Campaign','Campaign'],
+    ['disposition','Call disposition','Call Disposition'],
+    ['when','Call date or time (optional)','Call Date/Time']
+  ],
+  leads: [
+    ['agent','Agent name','Agent Name'],
+    ['campaign','Campaign','Campaign'],
+    ['stage','Stage','Stage'],
+    ['when','Created date (optional)','Created On']
+  ]
+};
+const OPTIONAL = new Set(['when','transfers','meeting','wait','wrap']);
+
+/* Defaults tuned to the disposition names already in use on the floor. */
+const DEFAULT_BUCKETS = {
+  'lead':{e:1,l:1}, 'new roof':{e:1,l:1}, 'appointment booked':{e:1,l:1},
+  'lead converted':{e:1,l:1}, 'qualified in external crm':{e:1,l:1}, 'interested':{e:1,l:1},
+  'transfer':{e:1,l:1}, 'transferred':{e:1,l:1},
+  'not interested':{e:1,l:0}, 'callback':{e:1,l:0}, 'call back':{e:1,l:0},
+  'do not call':{e:1,l:0}, 'wrong number':{e:1,l:0}, 'not the owner':{e:1,l:0},
+  'objection – no booking':{e:1,l:0}, 'objection - no booking':{e:1,l:0},
+  'answering machine':{e:0,l:0}, 'not available':{e:0,l:0}, 'no answer':{e:0,l:0},
+  'voicemail':{e:0,l:0}, 'disconnected number':{e:0,l:0}, 'abandoned':{e:0,l:0}
+};
+
+let DATA = { time:[], disp:[], leads:[], meta:{} };
+/* Name matching (Agent1 -> Fatima Wahba) is the agents table's job now, so the
+   page never has to know about it. Fix a pairing with an UPDATE there. */
+
+let STAGES = {};   // lead stage -> 1 when it counts as qualified
+let ALIAS = {};    // lead-file agent name -> call-log agent name
+let MAP = { time:null, disp:null, leads:null };
+let BUCKETS = {};
+let sortState = { table:'timeTable', key:'name', dir:1 };
+let boardSort = { key:'q', dir:-1 };
+let pieChart = null;
+
+/* =========================================================================
+   Parsing helpers
+   ========================================================================= */
+function toSeconds(v){
+  if(v===null||v===undefined) return 0;
+  const s = String(v).trim();
+  if(!s) return 0;
+  if(/^\d{1,3}:\d{1,2}:\d{1,2}(\.\d+)?$/.test(s)){ const p=s.split(':').map(Number); return p[0]*3600+p[1]*60+p[2]; }
+  if(/^\d{1,4}:\d{1,2}(\.\d+)?$/.test(s)){ const p=s.split(':').map(Number); return p[0]*60+p[1]; }
+  let t=0, hit=false;
+  const m=s.match(/(\d+(?:\.\d+)?)\s*h/i); if(m){t+=parseFloat(m[1])*3600;hit=true;}
+  const mm=s.match(/(\d+(?:\.\d+)?)\s*m(?!s)/i); if(mm){t+=parseFloat(mm[1])*60;hit=true;}
+  const ss=s.match(/(\d+(?:\.\d+)?)\s*s/i); if(ss){t+=parseFloat(ss[1]);hit=true;}
+  if(hit) return t;
+  const n=parseFloat(s.replace(/[^0-9.\-]/g,''));
+  return isNaN(n)?0:n;
+}
+function hms(sec){
+  sec=Math.max(0,Math.round(sec));
+  const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+  return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function ms(sec){
+  sec=Math.max(0,Math.round(sec));
+  const m=Math.floor(sec/60), s=sec%60;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+function toNum(v){ const n=parseFloat(String(v??'').replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:n; }
+function norm(s){ return String(s??'').trim().toLowerCase().replace(/[\s_\-–—:().]+/g,''); }
+function clean(s){ return String(s??'').trim(); }
+
+function guessHeader(headers, field, fallbackLabel){
+  const want = norm(fallbackLabel);
+  let hit = headers.find(h=>norm(h)===want);
+  if(hit) return hit;
+  const alts = {
+    name:['name','agent','agentname','user','fullname'],
+    logged:['loggedtime','logintime','totaltime','loggedin'],
+    ready:['ready','readyt','readytime','available'],
+    brk:['break','breakt','breaktime','pause','pausetime'],
+    meeting:['meeting','meetingtime','training'],
+    calls:['loggedcalls','calls','totalcalls','callcount','dials'],
+    transfers:['transfers','transfer','xfers'],
+    wait:['readyavgwait','avgwait','averagewait','waittime'],
+    wrap:['readyavgwrap','avgwrap','averagewrap','wrapup','wraptime'],
+    talk:['readytalktime','talktime','talk','totaltalk','talktimetotal'],
+    agent:['agentname','agent','name','user','rep'],
+    campaign:['campaign','campaignname','list','group'],
+    disposition:['calldisposition','disposition','status','outcome','result','callresult'],
+    stage:['stage','leadstage','status','pipelinestage','leadstatus'],
+    when:['createdon','created','calldatetime','calldate','datetime','date','starttime','calltime','timestamp']
+  }[field]||[];
+  hit = headers.find(h=>alts.includes(norm(h)));
+  if(hit) return hit;
+  hit = headers.find(h=>alts.some(a=>norm(h).includes(a)));
+  return hit || '';
+}
+
+/* =========================================================================
+   Upload flow
+   ========================================================================= */
+let pendingKind = null;
+document.getElementById('upTime').onclick = ()=>{ pendingKind='time'; document.getElementById('fileInput').click(); };
+document.getElementById('upDisp').onclick = ()=>{ pendingKind='disp'; document.getElementById('fileInput').click(); };
+document.getElementById('upLeads').onclick = ()=>{ pendingKind='leads'; document.getElementById('fileInput').click(); };
+
+document.getElementById('fileInput').onchange = e=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  Papa.parse(f, {
+    header:true, skipEmptyLines:'greedy', dynamicTyping:false,
+    complete: res=>{
+      const rows = res.data.filter(r=>Object.values(r).some(v=>clean(v)!==''));
+      const headers = (res.meta.fields||[]).filter(h=>clean(h)!=='');
+      if(!rows.length || !headers.length){
+        openNotice('Nothing to read','That file has no readable rows. Export again as CSV with a header row, then upload it.');
+      } else {
+        const saved = MAP[pendingKind];
+        const usable = saved && FIELDS[pendingKind].every(([k])=>OPTIONAL.has(k) || (saved[k] && headers.includes(saved[k])));
+        if(usable) ingest(pendingKind, rows, saved, f.name);
+        else openMapper(pendingKind, headers, rows, f.name);
+      }
+      e.target.value='';
+    },
+    error: ()=>{ openNotice('Upload failed','That file could not be read. Save it as CSV and try again.'); e.target.value=''; }
+  });
+};
+
+function openMapper(kind, headers, rows, fname){
+  const saved = MAP[kind] || {};
+  const guesses = {};
+  FIELDS[kind].forEach(([k,,fb])=>{
+    guesses[k] = (saved[k] && headers.includes(saved[k])) ? saved[k] : guessHeader(headers,k,fb);
+  });
+  const title = kind==='time' ? 'Match the agent time report'
+    : kind==='leads' ? 'Match the qualified leads export' : 'Match the call log report';
+  const body = FIELDS[kind].map(([k,label,fb])=>`
+    <div class="maprow">
+      <div>
+        <div class="lbl">${label}${OPTIONAL.has(k)?' <span class="hint">optional</span>':''}</div>
+        <div class="hint">expected header: ${esc(fb)}</div>
+      </div>
+      <select data-field="${k}">
+        <option value="">— not in this file —</option>
+        ${headers.map(h=>`<option value="${esc(h)}" ${guesses[k]===h?'selected':''}>${esc(h)}</option>`).join('')}
+      </select>
+    </div>`).join('');
+
+  openModal({
+    title,
+    sub:`${rows.length.toLocaleString()} rows read from ${esc(fname)}. Confirm each field, and this match is saved for next week.`,
+    body,
+    footer:`<button class="btn primary" id="mapSave">Save match and load data</button>
+            <button class="btn" data-close>Cancel</button>
+            <span class="note" id="mapWarn"></span>`,
+    onOpen(root){
+      const sync=()=>root.querySelectorAll('select[data-field]').forEach(s=>{
+        s.classList.toggle('unset', !s.value && !OPTIONAL.has(s.dataset.field));
+        if(s._w) s._w.classList.toggle('unset', s.classList.contains('unset'));
+      });
+      root.querySelectorAll('select[data-field]').forEach(s=>s.onchange=sync); sync();
+      root.querySelector('#mapSave').onclick = ()=>{
+        const m={}; let missing=[];
+        root.querySelectorAll('select[data-field]').forEach(s=>{
+          m[s.dataset.field]=s.value;
+          if(!s.value && !OPTIONAL.has(s.dataset.field)) missing.push(s.dataset.field);
+        });
+        if(missing.length){
+          root.querySelector('#mapWarn').innerHTML='<span class="warnline">Pick a column for every field that is not marked optional.</span>';
+          return;
+        }
+        ingest(kind, rows, m, fname);
+        closeModal();
+      };
+    }
+  });
+}
+
+/* Rows go to the database raw — one row per call, one per lead. The views do
+   the aggregating, and the agents table does the name matching, so nothing is
+   decided here that you cannot change later without re-importing. */
+const CHUNK = 4000;
+
+async function ingest(kind, rows, mapping, fname){
+  MAP[kind]=mapping; saveMappings(MAP);
+
+  let payload;
+  if(kind==='time'){
+    payload = rows.map(r=>({
+      name: clean(r[mapping.name]),
+      logged: toSeconds(r[mapping.logged]),
+      ready:  toSeconds(r[mapping.ready]),
+      brk:    toSeconds(r[mapping.brk]),
+      meeting: mapping.meeting ? toSeconds(r[mapping.meeting]) : 0,
+      calls:  toNum(r[mapping.calls]),
+      transfers: mapping.transfers ? toNum(r[mapping.transfers]) : 0,
+      wait: mapping.wait ? toSeconds(r[mapping.wait]) : 0,
+      wrap: mapping.wrap ? toSeconds(r[mapping.wrap]) : 0,
+      talk: toSeconds(r[mapping.talk])
+    })).filter(r=>r.name && (r.logged || r.calls));
+  } else if(kind==='disp'){
+    payload = rows.map(r=>{
+      const d = mapping.when ? new Date(clean(r[mapping.when])) : null;
+      return {
+        agent: clean(r[mapping.agent]) || 'Unassigned',
+        campaign: clean(r[mapping.campaign]) || 'Unassigned',
+        disposition: clean(r[mapping.disposition]) || 'Blank',
+        ts: (d && !isNaN(d)) ? localStamp(d) : null
+      };
+    }).filter(r=>r.disposition !== 'Blank' || r.agent !== 'Unassigned');
+  } else {
+    payload = rows.map(r=>{
+      const d = mapping.when ? new Date(clean(r[mapping.when])) : null;
+      return {
+        agent: clean(r[mapping.agent]) || 'Unassigned',
+        campaign: clean(r[mapping.campaign]) || 'Unassigned',
+        stage: clean(r[mapping.stage]) || 'Blank',
+        created_on: (d && !isNaN(d)) ? isoDay(d) : null
+      };
+    });
+  }
+
+  const path = kind==='time' ? '/load/time' : kind==='disp' ? '/load/calls' : '/load/leads';
+  const label = kind==='time' ? 'agent time report' : kind==='disp' ? 'call log' : 'qualified leads';
+  const chunks = Math.max(1, Math.ceil(payload.length / CHUNK));
+
+  openModal({
+    title:'Uploading the ' + label,
+    sub:`${payload.length.toLocaleString()} rows from ${esc(fname)}. Leave this open until it finishes.`,
+    body:'<p class="note" id="upMsg">Sending…</p><div class="prog"><i id="upBar"></i></div>',
+    footer:'<span class="note">This replaces the previous ' + label + ' for everyone.</span>'
+  });
+  const bar = document.getElementById('upBar'), msg = document.getElementById('upMsg');
+
+  try{
+    for(let i=0; i<chunks; i++){
+      const slice = payload.slice(i*CHUNK, (i+1)*CHUNK);
+      // the first chunk clears the table, the rest add to it
+      await apiPost(path, {mode: i===0 ? 'replace' : 'append', rows: slice});
+      const pctDone = Math.round(((i+1)/chunks)*100);
+      bar.style.width = pctDone + '%';
+      msg.textContent = `Sent ${Math.min((i+1)*CHUNK, payload.length).toLocaleString()} of ${payload.length.toLocaleString()} rows…`;
+    }
+    msg.textContent = 'Loaded. Refreshing the dashboard…';
+    await refresh();
+    closeModal();
+  }catch(err){
+    msg.innerHTML = '<span class="warnline">' + esc(err.message) + '</span>';
+    document.querySelector('.modal .foot').innerHTML =
+      '<button class="btn" data-close>Close</button>' +
+      '<span class="note">Nothing was changed for other people if this failed on the first chunk.</span>';
+    document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeModal);
+  }
+}
+
+/* "Sent To Client" is the only stage that means the lead actually left the
+   floor, so it's the default. Everything else starts off. */
+function seedStages(){
+  new Set(DATA.leads.map(l=>l.stage)).forEach(s=>{
+    if(STAGES[s]===undefined) STAGES[s] = /sent\s*to\s*client/i.test(s) ? 1 : 0;
+  });
+}
+/* The leads export names people in full; the call log uses Agent1..N. */
+function canon(name){ return ALIAS[name] || name; }
+
+function seedBuckets(){
+  new Set(DATA.disp.map(d=>d.disposition)).forEach(d=>{
+    if(BUCKETS[d]) return;
+    const def = DEFAULT_BUCKETS[d.trim().toLowerCase()];
+    BUCKETS[d] = def ? {e:def.e,l:def.l} : {e:0,l:0};
+  });
+}
+
+/* =========================================================================
+   Outcome settings + clear
+   ========================================================================= */
+document.getElementById('editBuckets').onclick = ()=>{
+  const disps = Object.keys(BUCKETS).sort((a,b)=>a.localeCompare(b));
+  const stages = Object.keys(STAGES).sort((a,b)=>a.localeCompare(b));
+  if(!disps.length && !stages.length){
+    openNotice('Nothing to set up yet','Upload a call log or a qualified leads export first. Whatever they contain shows up here so you can say which outcomes count.');
+    return;
+  }
+
+  // Names in the leads export that don't exist in the call log or time report.
+  const known = [...new Set([...DATA.time.map(t=>t.name), ...DATA.disp.map(d=>d.agent)])].sort((a,b)=>a.localeCompare(b));
+  const leadNames = [...new Set(DATA.leads.map(l=>l.agent))].sort((a,b)=>a.localeCompare(b));
+  const unmatched = leadNames.filter(n=>!known.includes(n));
+
+  let body = '';
+  if(disps.length){
+    body += `<p class="secnote">Calls — tick every outcome that means someone picked up. Connection rate is those divided by all calls dialed.</p>
+      <div class="bkrow2"><div class="hd">Disposition</div><div class="hd cell-c">Counts as connection</div></div>
+      ${disps.map(n=>`<div class="bkrow2"><div>${esc(n)}</div>
+        <div class="cell-c"><input type="checkbox" data-d="${esc(n)}" ${BUCKETS[n].e?'checked':''}></div></div>`).join('')}`;
+  }
+  if(stages.length){
+    body += `<p class="secnote">Leads — tick the stages that count as qualified. Only these are counted as leads anywhere on the dashboard.</p>
+      <div class="bkrow2"><div class="hd">Lead stage</div><div class="hd cell-c">Counts as qualified</div></div>
+      ${stages.map(n=>`<div class="bkrow2"><div>${esc(n)}</div>
+        <div class="cell-c"><input type="checkbox" data-s="${esc(n)}" ${STAGES[n]?'checked':''}></div></div>`).join('')}`;
+  }
+  if(unmatched.length && known.length){
+    body += `<p class="secnote">Names — the leads export uses full names and the call log doesn't. Match them so each caller's leads land on their own row.</p>
+      ${unmatched.map(n=>`<div class="maprow">
+        <div><div class="lbl">${esc(n)}</div><div class="hint">from the leads export</div></div>
+        <select data-alias="${esc(n)}">
+          <option value="">Keep as a separate row</option>
+          ${known.map(k=>`<option value="${esc(k)}" ${ALIAS[n]===k?'selected':''}>${esc(k)}</option>`).join('')}
+        </select></div>`).join('')}`;
+  }
+
+  openModal({
+    title:'Outcome settings',
+    sub:'These definitions drive every number on the dashboard and are shared with anyone on the link.',
+    body,
+    footer:`<button class="btn primary" id="bkSave">Save settings</button><button class="btn" data-close>Cancel</button>
+            <span class="note" id="bkWarn">Anything new appears here automatically after each upload.</span>`,
+    onOpen(root){
+      root.querySelector('#bkSave').onclick = async ()=>{
+        root.querySelectorAll('input[data-d]').forEach(cb=>{ BUCKETS[cb.dataset.d].e = cb.checked?1:0; });
+        root.querySelectorAll('input[data-s]').forEach(cb=>{ STAGES[cb.dataset.s] = cb.checked?1:0; });
+        root.querySelectorAll('select[data-alias]').forEach(s=>{
+          if(s.value) ALIAS[s.dataset.alias]=s.value; else delete ALIAS[s.dataset.alias];
+        });
+        const body = {
+          dispositions: Object.keys(BUCKETS).map(n=>({name:n, on:BUCKETS[n].e?1:0})),
+          stages:       Object.keys(STAGES).map(n=>({name:n, on:STAGES[n]?1:0})),
+          aliases:      Object.keys(ALIAS).map(full=>({full_name:full, dialer_name:ALIAS[full]}))
+        };
+        try{
+          await apiPost('/settings', body);
+          closeModal();
+          await refresh();
+        }catch(err){
+          root.querySelector('#bkWarn').innerHTML =
+            '<span class="warnline">' + esc(err.message) + '</span>';
+        }
+      };
+    }
+  });
+};
+
+/* Served as a normal page, the print dialog is available directly. The
+   standalone-report route is kept as a fallback for embedded viewers. */
+function printableHtml(){
+  const css = document.querySelector('style').textContent;
+  // pull the @media print block out and apply it as ordinary rules
+  const at = css.indexOf('@media print{');
+  let printRules = '';
+  if(at > -1){
+    let i = css.indexOf('{', at), depth = 0, end = i;
+    for(; end < css.length; end++){
+      if(css[end]==='{') depth++;
+      else if(css[end]==='}'){ depth--; if(!depth) break; }
+    }
+    printRules = css.slice(i+1, end);
+  }
+
+  const head = document.querySelector('header.mast').cloneNode(true);
+  head.querySelectorAll('.pill').forEach(n=>n.remove());
+  const dash = document.getElementById('dash').cloneNode(true);
+  dash.classList.remove('hidden');
+
+  // the doughnut is a canvas — freeze it as an image
+  const live = document.getElementById('pie');
+  const shot = dash.querySelector('#pie');
+  if(shot && live){
+    const img = document.createElement('img');
+    try{ img.src = live.toDataURL('image/png'); }catch(e){}
+    img.style.width='100%'; img.style.height='auto';
+    shot.replaceWith(img);
+  }
+
+  /* No complete tag is written literally here — the artifact viewer strips
+     anything that looks like a real style or script block inside this code. */
+  const LT = String.fromCharCode(60), GT = String.fromCharCode(62);
+  const open  = n => LT + n + GT;
+  const close = n => LT + '/' + n + GT;
+  const styled = txt => open('style') + txt + close('style');
+
+  return '!doctype html'.replace(/^/, LT) + GT
+    + open('html') + open('head')
+    + LT + 'meta charset="utf-8"' + GT
+    + open('title') + 'Nedialo \u2014 floor performance' + close('title')
+    + styled(css)
+    + styled(printRules)
+    + styled('body{padding:22px 26px}')
+    + close('head')
+    + open('body') + head.outerHTML + dash.outerHTML + close('body')
+    + close('html');
+}
+
+document.getElementById('exportPdf').onclick = ()=>{
+  if(!(DATA.time.length || DATA.disp.length || DATA.leads.length)){
+    openNotice('Nothing to export yet','Upload a report first. The PDF prints whatever the filters are showing.');
+    return;
+  }
+  closeSelects();
+  const url = URL.createObjectURL(new Blob([printableHtml()], {type:'text/html'}));
+  const name = `nedialo-floor-performance-${isoDay(new Date())}.html`;
+
+  // A normal page can print itself. Only fall back if that is blocked.
+  try{
+    if(window.self === window.top){ window.print(); return; }
+  }catch(e){}
+
+  openModal({
+    title:'Save this report as a PDF',
+    sub:'This viewer blocks the print dialog, so open the report in its own tab and print from there.',
+    body:`<ol class="steps">
+      <li><a class="biglink" href="${url}" target="_blank" rel="noopener">Open the printable report</a></li>
+      <li>Press Ctrl&nbsp;+&nbsp;P (Cmd&nbsp;+&nbsp;P on a Mac).</li>
+      <li>Set the destination to <strong>Save as PDF</strong>, then save.</li>
+    </ol>
+    <p class="note">It prints exactly what your filters are showing right now — agent, campaign and date range are stamped at the top of the page.</p>`,
+    footer:`<a class="btn primary" href="${url}" download="${name}">Download the report file</a>
+            <button class="btn" data-close>Close</button>`
+  });
+};
+
+document.getElementById('refreshBtn').onclick = ()=>refresh();
+
+document.getElementById('adminBtn').onclick = ()=>{
+  if(isAdmin()){
+    openModal({
+      title:'Signed in as admin',
+      sub:'You can upload reports and change outcome settings. Everyone else sees the dashboard read-only.',
+      body:'<p class="note">Signing out leaves the dashboard working — it just hides the upload controls until you sign in again.</p>',
+      footer:'<button class="btn primary" id="soGo">Sign out</button><button class="btn" data-close>Stay signed in</button>',
+      onOpen(root){ root.querySelector('#soGo').onclick = ()=>{ signOut(); closeModal(); }; }
+    });
+    return;
+  }
+  openModal({
+    title:'Admin sign-in',
+    sub:'Only needed to upload reports or change settings. Viewing needs no sign-in.',
+    body:`<div class="field"><label for="cid">Client ID</label>
+            <input id="cid" autocomplete="off" spellcheck="false"></div>
+          <div class="field"><label for="csec">Client secret</label>
+            <input id="csec" type="password" autocomplete="off"></div>
+          <p class="hint">These come from your database: run
+            <em>SELECT name, client_id, client_secret FROM user_ords_clients;</em>
+            in Database Actions. They are kept for this browser session only, never saved to the page.</p>
+          <p class="note" id="siWarn"></p>`,
+    footer:'<button class="btn primary" id="siGo">Sign in</button><button class="btn" data-close>Cancel</button>',
+    onOpen(root){
+      const go = async ()=>{
+        const id=root.querySelector('#cid').value.trim(), sec=root.querySelector('#csec').value.trim();
+        if(!id || !sec){ root.querySelector('#siWarn').innerHTML='<span class="warnline">Both fields are needed.</span>'; return; }
+        root.querySelector('#siWarn').textContent='Checking…';
+        try{ await signIn(id, sec); closeModal(); }
+        catch(err){ root.querySelector('#siWarn').innerHTML='<span class="warnline">'+esc(err.message)+'</span>'; }
+      };
+      root.querySelector('#siGo').onclick = go;
+      root.querySelector('#csec').onkeydown = e=>{ if(e.key==='Enter') go(); };
+    }
+  });
+};
+
+/* =========================================================================
+   Filters
+   ========================================================================= */
+const agentSel=document.getElementById('agentSel'), campSel=document.getElementById('campSel');
+const rangeSel=document.getElementById('rangeSel'), fromD=document.getElementById('fromD'), toD=document.getElementById('toD');
+agentSel.onchange = campSel.onchange = render;
+rangeSel.onchange = ()=>{
+  const custom = rangeSel.value==='custom';
+  document.getElementById('customRange').classList.toggle('hidden', !custom);
+  if(custom && !fromD.value && !toD.value){ fromD.value=minDay()||''; toD.value=maxDay()||''; }
+  render();
+};
+fromD.onchange = toD.onchange = render;
+document.getElementById('resetF').onclick = ()=>{
+  agentSel.value='__all'; campSel.value='__all'; rangeSel.value='all';
+  fromD.value=''; toD.value='';
+  document.getElementById('customRange').classList.add('hidden');
+  render();
+};
+
+function isoDay(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+/* Local wall-clock, not UTC: converting would move an 01:00 Cairo call into
+   the previous day and land it in the wrong bucket. */
+function localStamp(d){
+  const p = n => String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())
+       +'T'+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}
+function prettyDay(s){
+  if(!s) return '';
+  const d=new Date(s+'T00:00:00');
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+}
+/* Ranges are anchored to the newest call in the file, not to today, so
+   "last 7 days" still means something when you load an older export. */
+function activeRange(){
+  const v=rangeSel.value;
+  if(v==='all') return null;
+  if(v==='custom'){
+    const a=fromD.value, b=toD.value;
+    return (a||b) ? {a:a||'0000-01-01', b:b||'9999-12-31'} : null;
+  }
+  const max=maxDay();
+  if(!max) return null;
+  const d=new Date(max+'T00:00:00'); d.setDate(d.getDate()-(Number(v)-1));
+  return {a:isoDay(d), b:max};
+}
+function maxDay(){
+  const a=DATA.meta.maxDay, b=DATA.meta.maxDayL;
+  return (a&&b) ? (a>b?a:b) : (a||b||null);
+}
+function minDay(){
+  const a=DATA.meta.minDay, b=DATA.meta.minDayL;
+  return (a&&b) ? (a<b?a:b) : (a||b||null);
+}
+function inRange(day){
+  const r=activeRange();
+  if(!r) return true;
+  if(!day) return false;
+  return day>=r.a && day<=r.b;
+}
+
+function fillFilters(){
+  const agents=new Set([...DATA.time.map(t=>t.name), ...DATA.disp.map(d=>d.agent), ...DATA.leads.map(l=>canon(l.agent))]);
+  const camps=new Set([...DATA.disp.map(d=>d.campaign), ...DATA.leads.map(l=>l.campaign)]);
+  const keepA=agentSel.value, keepC=campSel.value;
+  agentSel.innerHTML='<option value="__all">All agents</option>'+
+    [...agents].sort((a,b)=>a.localeCompare(b)).map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  campSel.innerHTML='<option value="__all">All campaigns</option>'+
+    [...camps].sort((a,b)=>a.localeCompare(b)).map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if([...agents].includes(keepA)) agentSel.value=keepA;
+  if([...camps].includes(keepC)) campSel.value=keepC;
+  enhance(agentSel); enhance(campSel); enhance(rangeSel);
+}
+const fAgent=()=>agentSel.value, fCamp=()=>campSel.value;
+
+function leadsScoped(){
+  return DATA.leads.filter(l=>(fAgent()==='__all'||canon(l.agent)===fAgent())
+    && (fCamp()==='__all'||l.campaign===fCamp()) && inRange(l.day));
+}
+function qualified(rows){
+  return rows.reduce((a,l)=>a + (STAGES[l.stage]?l.n:0), 0);
+}
+function dispScoped(){
+  return DATA.disp.filter(d=>(fAgent()==='__all'||d.agent===fAgent())
+    && (fCamp()==='__all'||d.campaign===fCamp()) && inRange(d.day));
+}
+function timeScoped(){
+  let rows=DATA.time;
+  if(fCamp()!=='__all'){
+    const on=new Set(DATA.disp.filter(d=>d.campaign===fCamp()&&inRange(d.day)).map(d=>d.agent));
+    if(on.size) rows=rows.filter(r=>on.has(r.name));
+  }
+  if(fAgent()!=='__all') rows=rows.filter(r=>r.name===fAgent());
+  return rows;
+}
+
+/* =========================================================================
+   Render
+   ========================================================================= */
+function render(){
+  const has = DATA.time.length || DATA.disp.length || DATA.leads.length;
+  document.getElementById('empty').classList.toggle('hidden', !!has);
+  document.getElementById('dash').classList.toggle('hidden', !has);
+  document.getElementById('filterBar').classList.toggle('hidden', !has);
+  paintStamp();
+  if(!has) return;
+  fillFilters(); paintPrintHead(); paintScopeNote(); paintKpis(); paintTimeTable(); paintDispositions(); paintLeadAgents(); paintLeads(); paintBoards();
+}
+function paintStamp(){
+  const bits=[];
+  if(DATA.meta.timeLoadedAt)  bits.push(`Agent time: ${when(DATA.meta.timeLoadedAt)}`);
+  if(DATA.meta.callsLoadedAt) bits.push(`Call log: ${when(DATA.meta.callsLoadedAt)}`);
+  if(DATA.meta.leadsLoadedAt) bits.push(`Qualified leads: ${when(DATA.meta.leadsLoadedAt)}`);
+  document.getElementById('stamp').innerHTML=bits.join('<br>');
+}
+function when(iso){
+  const d=new Date(iso);
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+}
+function paintPrintHead(){
+  const el=document.getElementById('printHead');
+  const bits=[];
+  bits.push(fAgent()==='__all'?'All agents':fAgent());
+  bits.push(fCamp()==='__all'?'All campaigns':fCamp());
+  const r=activeRange();
+  if(maxDay()) bits.push(r?`${prettyDay(r.a)} – ${prettyDay(r.b)}`:`${prettyDay(minDay())} – ${prettyDay(maxDay())}`);
+  const calls=dispScoped().reduce((a,b)=>a+b.n,0);
+  if(calls) bits.push(`${calls.toLocaleString()} calls`);
+  el.innerHTML=`<strong>Floor performance report</strong>${bits.map(esc).join(' &nbsp;·&nbsp; ')}
+    &nbsp;·&nbsp; printed ${new Date().toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'})}`;
+}
+function paintScopeNote(){
+  const hasDays = !!maxDay();
+  document.getElementById('dateGroup').classList.toggle('hidden', !hasDays);
+  const n=[], r=activeRange();
+  if(hasDays){
+    n.push(r ? `${prettyDay(r.a)} – ${prettyDay(r.b)}`
+             : `${prettyDay(minDay())} – ${prettyDay(maxDay())}`);
+  }
+  const rows=dispScoped().reduce((a,b)=>a+b.n,0);
+  if(rows) n.push(`${rows.toLocaleString()} calls in view`);
+  if(r && DATA.time.length) n.push('agent time report is not dated, so the table below covers the whole file');
+  document.getElementById('scopeNote').textContent=n.join(' · ');
+}
+const WRONG = /wrong\s*num|bad\s*num|disconnect/i;
+function stats(rows){
+  let calls=0,conn=0,wrong=0;
+  rows.forEach(r=>{
+    calls+=r.n;
+    if((BUCKETS[r.disposition]||{}).e) conn+=r.n;
+    if(WRONG.test(r.disposition)) wrong+=r.n;
+  });
+  return {calls,conn,wrong,rate:calls?conn/calls:0,wrongRate:calls?wrong/calls:0};
+}
+function pct(x){ return (x*100).toFixed(1)+'%'; }
+
+function paintKpis(){
+  const s=stats(dispScoped()), t=timeScoped();
+  const talk=t.reduce((a,b)=>a+b.talk,0), logged=t.reduce((a,b)=>a+b.logged,0);
+  const viewing = fAgent()==='__all' ? (fCamp()==='__all'?'Whole floor':fCamp())
+    : fAgent()+(fCamp()==='__all'?'':' · '+fCamp());
+  const ls = leadsScoped(), q = qualified(ls), worked = ls.reduce((a,b)=>a+b.n,0);
+  const cards=[
+    ['Calls', s.calls.toLocaleString(), t.length?`${t.reduce((a,b)=>a+b.calls,0).toLocaleString()} logged on the dialer`:''],
+    ['Connections', s.conn.toLocaleString(), s.calls?`of ${s.calls.toLocaleString()} calls dialed`:''],
+    ['Connection rate', pct(s.rate), 'connections ÷ calls dialed'],
+    ['Wrong number rate', s.calls?pct(s.wrong/s.calls):'—', `${s.wrong.toLocaleString()} of ${s.calls.toLocaleString()} calls dialed`],
+    ['Qualified leads', q.toLocaleString(), worked?`of ${worked.toLocaleString()} leads worked`:'no leads file loaded', true],
+    ['Success rate', s.conn?pct(q/s.conn):'—', 'qualified leads ÷ connections'],
+    ['Talk share', logged?pct(talk/logged):'—', logged?`${hms(talk)} talking of ${hms(logged)} logged`:''],
+    ['Viewing', viewing, `${t.length||new Set(dispScoped().map(d=>d.agent)).size} agent(s)`]
+  ];
+  document.getElementById('kpis').innerHTML=cards.map(([k,v,n,f])=>`
+    <div class="kpi ${f?'focus':''}">
+      <div class="k">${k}</div><div class="v">${esc(v)}</div><div class="n">${n||'&nbsp;'}</div>
+    </div>`).join('');
+}
+
+const TIME_COLS=[['name','Agent','t'],['logged','Logged','h'],['ready','Ready','h'],['brk','Break','h'],
+  ['meeting','Meeting','h'],['calls','Calls','n'],['transfers','Transfers','n'],
+  ['wait','Avg wait','m'],['wrap','Avg wrap','m'],['talk','Talk time','h']];
+
+function paintTimeTable(){
+  const rows=timeScoped(), el=document.getElementById('timeTable');
+  if(!rows.length){
+    el.innerHTML='<tbody><tr><td style="color:var(--faint)">No agent time report loaded for this view.</td></tr></tbody>';
+    document.getElementById('timeNote').textContent=''; return;
+  }
+  const base=DATA.time, avg={};
+  TIME_COLS.forEach(([k,,type])=>{ if(type!=='t') avg[k]=base.reduce((a,b)=>a+b[k],0)/base.length; });
+  const maxBrk=Math.max(...base.map(r=>r.brk-avg.brk),1), maxMtg=Math.max(...base.map(r=>r.meeting-avg.meeting),1);
+  const sorted=[...rows].sort(cmp('timeTable'));
+  const fmt=(v,t)=> t==='h'?hms(v): t==='m'?ms(v): Math.round(v).toLocaleString();
+
+  el.innerHTML=`
+    <thead><tr>${TIME_COLS.map(([k,label])=>`<th data-t="timeTable" data-k="${k}">${label}${arrow('timeTable',k)}</th>`).join('')}</tr></thead>
+    <tbody>
+      ${sorted.map(r=>`<tr>${TIME_COLS.map(([k,,type])=>{
+        if(type==='t') return `<td>${esc(r.name)}</td>`;
+        const over=(k==='brk'||k==='meeting')&&r[k]>avg[k];
+        if(over){
+          const i=Math.min(1,(r[k]-avg[k])/(k==='brk'?maxBrk:maxMtg));
+          return `<td class="flag"><span class="bar" style="opacity:${(0.10+i*0.26).toFixed(2)}"></span><span class="over">${fmt(r[k],type)}</span></td>`;
+        }
+        return `<td>${fmt(r[k],type)}</td>`;
+      }).join('')}</tr>`).join('')}
+      <tr class="avg">${TIME_COLS.map(([k,,type])=> type==='t'?`<td>Team average</td>`:`<td>${fmt(avg[k],type)}</td>`).join('')}</tr>
+    </tbody>`;
+  wireSort(el);
+  const overs=rows.filter(r=>r.brk>avg.brk||r.meeting>avg.meeting).length;
+  document.getElementById('timeNote').textContent =
+    `${overs} of ${rows.length} agent(s) in view are above the floor average on break or meeting time. Averages are taken across all ${base.length} agents in the report.`;
+}
+
+const PALETTE=['#e0b23a','#2e8bd6','#2fb98a','#e2664a','#8e7bd8','#5ac8e8','#c9976a','#7c93ae','#d96fa0','#9fc65a','#6e7fe0','#4fd1b5'];
+
+function paintDispositions(){
+  const rows=dispScoped(), legend=document.getElementById('pieLegend'), table=document.getElementById('dispTable');
+  if(!rows.length){
+    if(pieChart){ pieChart.destroy(); pieChart=null; }
+    legend.innerHTML='<span class="note">No call log loaded for this view.</span>';
+    table.innerHTML='<tbody><tr><td style="color:var(--faint)">No dispositions to show.</td></tr></tbody>';
+    return;
+  }
+  const by=new Map();
+  rows.forEach(r=>by.set(r.disposition,(by.get(r.disposition)||0)+r.n));
+  const list=[...by.entries()].sort((a,b)=>b[1]-a[1]);
+  const total=list.reduce((a,b)=>a+b[1],0);
+
+  if(pieChart) pieChart.destroy();
+  pieChart=new Chart(document.getElementById('pie'),{
+    type:'doughnut',
+    data:{labels:list.map(l=>l[0]),datasets:[{data:list.map(l=>l[1]),
+      backgroundColor:list.map((_,i)=>PALETTE[i%PALETTE.length]),
+      borderColor:'#0f2440',borderWidth:2,hoverOffset:9}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+      animation:{animateRotate:true,duration:600,easing:'easeOutQuart'},
+      plugins:{legend:{display:false},
+        tooltip:{backgroundColor:'#122c4d',borderColor:'#1d3a5e',borderWidth:1,padding:10,
+          titleColor:'#e9f0f7',bodyColor:'#8ba5c2',displayColors:false,
+          callbacks:{label:c=>` ${c.label}: ${c.parsed.toLocaleString()} (${((c.parsed/total)*100).toFixed(1)}%)`}}}}
+  });
+
+  legend.innerHTML=list.map(([n,c],i)=>`
+    <div class="row">
+      <span class="sw" style="background:${PALETTE[i%PALETTE.length]}"></span>
+      <span class="nm">${esc(n)}</span><span class="ct">${c.toLocaleString()}</span>
+      <span class="pc">${((c/total)*100).toFixed(1)}%</span>
+    </div>`).join('');
+
+  table.innerHTML=`
+    <thead><tr><th>Disposition</th><th>Calls</th><th>Share</th><th>Connection</th></tr></thead>
+    <tbody>${list.map(([n,c])=>{
+      const b=BUCKETS[n]||{e:0};
+      return `<tr><td>${esc(n)}</td><td>${c.toLocaleString()}</td><td>${((c/total)*100).toFixed(1)}%</td>
+        <td>${b.e?'<span class="medal">yes</span>':'—'}</td></tr>`;
+    }).join('')}
+    <tr class="avg"><td>Total</td><td>${total.toLocaleString()}</td><td>100.0%</td><td></td></tr></tbody>`;
+}
+
+/* The four stages always get a column, in this order, even when a filter or a
+   quiet week leaves one of them empty — an absent column reads as an error. */
+const BASE_STAGES = ['Sent To Client','Disqualified','Pending','Callback'];
+function stageCols(){
+  const found=[...new Set(DATA.leads.map(l=>l.stage))];
+  const extra=found.filter(s=>!BASE_STAGES.some(b=>b.toLowerCase()===s.toLowerCase()))
+                   .sort((a,b)=>a.localeCompare(b));
+  const canon=s=>found.find(f=>f.toLowerCase()===s.toLowerCase()) || s;
+  return BASE_STAGES.map(canon).concat(extra);
+}
+
+function paintLeadAgents(){
+  const el=document.getElementById('leadAgentTable');
+  const rows=leadsScoped();
+  if(!rows.length){
+    el.innerHTML='<tbody><tr><td style="color:var(--faint)">No leads in this view.</td></tr></tbody>';
+    return;
+  }
+  const stages=stageCols();
+  const by=new Map();
+  rows.forEach(l=>{
+    const a=canon(l.agent);
+    if(!by.has(a)) by.set(a,{});
+    const c=by.get(a);
+    c[l.stage]=(c[l.stage]||0)+l.n;
+  });
+  const list=[...by.entries()].map(([agent,c])=>{
+    const q=stages.reduce((a,s)=>a+(STAGES[s]?(c[s]||0):0),0);
+    const tot=stages.reduce((a,s)=>a+(c[s]||0),0);
+    return {agent,c,q,tot};
+  }).sort((a,b)=>b.q-a.q||b.tot-a.tot);
+
+  el.innerHTML=`
+    <thead><tr><th>Caller</th><th>Qualified</th>${stages.map(s=>`<th>${esc(s)}</th>`).join('')}<th>Worked</th></tr></thead>
+    <tbody>
+      ${list.map(r=>`<tr${r.agent===fAgent()?' class="me"':''}><td>${esc(r.agent)}</td>
+        <td><strong class="medal">${r.q.toLocaleString()}</strong></td>
+        ${stages.map(s=>`<td>${(r.c[s]||0).toLocaleString()}</td>`).join('')}
+        <td>${r.tot.toLocaleString()}</td></tr>`).join('')}
+      <tr class="avg"><td>All callers</td><td>${list.reduce((a,b)=>a+b.q,0).toLocaleString()}</td>
+        ${stages.map(s=>`<td>${list.reduce((a,b)=>a+(b.c[s]||0),0).toLocaleString()}</td>`).join('')}
+        <td>${list.reduce((a,b)=>a+b.tot,0).toLocaleString()}</td></tr>
+    </tbody>`;
+}
+
+function paintLeads(){
+  const el=document.getElementById('leadTable');
+  const rows=leadsScoped();
+  document.getElementById('leadSection').classList.toggle('hidden', !DATA.leads.length);
+  if(!rows.length){
+    el.innerHTML='<tbody><tr><td style="color:var(--faint)">No qualified leads in this view.</td></tr></tbody>';
+    return;
+  }
+  const stages=stageCols();
+  const by=new Map();
+  rows.forEach(l=>{
+    if(!by.has(l.campaign)) by.set(l.campaign, {});
+    const c=by.get(l.campaign);
+    c[l.stage]=(c[l.stage]||0)+l.n;
+  });
+  const list=[...by.entries()].map(([campaign,c])=>{
+    const q=stages.reduce((a,s)=>a+(STAGES[s]?(c[s]||0):0),0);
+    const tot=stages.reduce((a,s)=>a+(c[s]||0),0);
+    return {campaign,c,q,tot};
+  }).sort((a,b)=>b.q-a.q);
+  const totals={q:list.reduce((a,b)=>a+b.q,0), tot:list.reduce((a,b)=>a+b.tot,0)};
+
+  el.innerHTML=`
+    <thead><tr><th>Campaign</th><th>Qualified</th>${stages.map(s=>`<th>${esc(s)}</th>`).join('')}<th>Worked</th></tr></thead>
+    <tbody>
+      ${list.map(r=>`<tr><td>${esc(r.campaign)}</td><td><strong class="medal">${r.q.toLocaleString()}</strong></td>
+        ${stages.map(s=>`<td>${(r.c[s]||0).toLocaleString()}</td>`).join('')}
+        <td>${r.tot.toLocaleString()}</td></tr>`).join('')}
+      <tr class="avg"><td>All campaigns</td><td>${totals.q.toLocaleString()}</td>
+        ${stages.map(s=>`<td>${list.reduce((a,b)=>a+(b.c[s]||0),0).toLocaleString()}</td>`).join('')}
+        <td>${totals.tot.toLocaleString()}</td></tr>
+    </tbody>`;
+}
+
+function paintBoards(){
+  const rows=DATA.disp.filter(d=>(fCamp()==='__all'||d.campaign===fCamp()) && inRange(d.day));
+  const lrows=DATA.leads.filter(l=>(fCamp()==='__all'||l.campaign===fCamp()) && inRange(l.day));
+  const byAgent=new Map();
+  rows.forEach(r=>{ if(!byAgent.has(r.agent)) byAgent.set(r.agent,[]); byAgent.get(r.agent).push(r); });
+  const qByAgent=new Map();
+  lrows.forEach(l=>{
+    const a=canon(l.agent);
+    qByAgent.set(a,(qByAgent.get(a)||0) + (STAGES[l.stage]?l.n:0));
+    if(!byAgent.has(a)) byAgent.set(a,[]);
+  });
+  const agents=[...byAgent.entries()].map(([a,rs])=>({agent:a,...stats(rs),q:qByAgent.get(a)||0}));
+  const el=document.getElementById('boardRate');
+  if(!agents.length){
+    el.innerHTML='<tbody><tr><td style="color:var(--faint)">No call log or leads file loaded.</td></tr></tbody>';
+    return;
+  }
+  const COLS=[['agent','Caller','t'],['calls','Calls','n'],['conn','Connections','n'],
+              ['q','Qualified','n'],['success','Success rate','p']];
+  agents.forEach(a=>{ a.success = a.conn ? a.q/a.conn : -1; });
+  const k=boardSort.key, dir=boardSort.dir;
+  const sorted=[...agents].sort((a,b)=> k==='agent' ? dir*a.agent.localeCompare(b.agent) : dir*(a[k]-b[k]));
+
+  el.innerHTML=`
+    <thead><tr><th class="rank"></th>${COLS.map(([c,label])=>
+      `<th data-b="${c}">${label}${boardSort.key===c?(dir>0?' ↑':' ↓'):''}</th>`).join('')}</tr></thead>
+    <tbody>${sorted.map((a,i)=>`<tr${a.agent===fAgent()?' class="me"':''}>
+      <td class="rank">${i<3?`<span class="medal">${i+1}</span>`:(i+1)}</td>
+      <td>${esc(a.agent)}</td>
+      <td>${a.calls.toLocaleString()}</td>
+      <td>${a.conn.toLocaleString()}</td>
+      <td><span class="medal">${a.q.toLocaleString()}</span></td>
+      <td><strong>${a.conn?pct(a.q/a.conn):'—'}</strong></td></tr>`).join('')}</tbody>`;
+
+  el.querySelectorAll('th[data-b]').forEach(th=>{
+    th.onclick=()=>{
+      const c=th.dataset.b;
+      if(boardSort.key===c) boardSort.dir*=-1;
+      else boardSort={key:c, dir:c==='agent'?1:-1};
+      paintBoards();
+    };
+  });
+}
+
+/* ---------- sorting ---------- */
+function cmp(tableId){
+  if(sortState.table!==tableId) return (a,b)=>a.name.localeCompare(b.name);
+  const k=sortState.key, dir=sortState.dir;
+  return (a,b)=> typeof a[k]==='string' ? dir*a[k].localeCompare(b[k]) : dir*(a[k]-b[k]);
+}
+function arrow(tableId,k){
+  if(sortState.table!==tableId||sortState.key!==k) return '';
+  return sortState.dir>0?' ↑':' ↓';
+}
+function wireSort(el){
+  el.querySelectorAll('th[data-k]').forEach(th=>{
+    th.onclick=()=>{
+      const k=th.dataset.k,t=th.dataset.t;
+      if(sortState.table===t&&sortState.key===k) sortState.dir*=-1;
+      else sortState={table:t,key:k,dir:k==='name'?1:-1};
+      paintTimeTable();
+    };
+  });
+}
+
+  /* ---------- themed dropdowns (native select popups can't be styled) ---------- */
+function closeSelects(){ document.querySelectorAll('.sel.open').forEach(s=>s.classList.remove('open')); }
+document.addEventListener('click', closeSelects);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSelects(); });
+
+function enhance(sel){
+  let w = sel._w;
+  if(!w){
+    w = document.createElement('div');
+    w.className = 'sel';
+    w.innerHTML = '<button type="button" class="sel-btn"><span class="sel-val"></span><span class="sel-car"></span></button><div class="sel-list" role="listbox"></div>';
+    if(sel.style.width) w.style.width = sel.style.width;
+    sel.parentNode.insertBefore(w, sel.nextSibling);
+    sel.classList.add('hidden');
+    sel._w = w;
+    const btn = w.querySelector('.sel-btn'), list = w.querySelector('.sel-list');
+    if(sel.id) btn.setAttribute('aria-label', sel.id);
+    btn.onclick = e=>{
+      e.stopPropagation();
+      const wasOpen = w.classList.contains('open');
+      closeSelects();
+      if(!wasOpen){
+        w.classList.add('open');
+        const on = list.querySelector('.on');
+        if(on && on.scrollIntoView) on.scrollIntoView({block:'nearest'});
+      }
+    };
+    list.onclick = e=>e.stopPropagation();
+    btn.onkeydown = e=>{
+      if(e.key==='ArrowDown' || e.key==='ArrowUp'){
+        e.preventDefault();
+        const i = sel.selectedIndex + (e.key==='ArrowDown'?1:-1);
+        if(i>=0 && i<sel.options.length){ sel.selectedIndex=i; enhance(sel); sel.dispatchEvent(new Event('change')); }
+      }
+    };
+  }
+  const btn = w.querySelector('.sel-btn'), list = w.querySelector('.sel-list');
+  btn.querySelector('.sel-val').textContent = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+  w.classList.toggle('unset', sel.classList.contains('unset'));
+  list.innerHTML = [...sel.options].map((o,i)=>
+    `<div class="sel-opt${i===sel.selectedIndex?' on':''}" data-i="${i}" role="option">${esc(o.text)}</div>`).join('');
+  list.querySelectorAll('.sel-opt').forEach(d=>{
+    d.onclick = ev=>{
+      ev.stopPropagation();
+      sel.selectedIndex = Number(d.dataset.i);
+      w.classList.remove('open');
+      enhance(sel);
+      sel.dispatchEvent(new Event('change'));
+    };
+  });
+  return w;
+}
+function enhanceAll(root){ (root||document).querySelectorAll('select:not(.hidden)').forEach(enhance); }
+
+/* ---------- modal ---------- */
+const veil=document.getElementById('veil'), modal=document.getElementById('modal');
+function openModal({title,sub,body,footer,onOpen}){
+  modal.innerHTML=`
+    <div class="head"><h3>${title}</h3><p>${sub||''}</p></div>
+    <div class="body">${body}</div>
+    <div class="foot">${footer||'<button class="btn" data-close>Close</button>'}</div>`;
+  veil.classList.remove('hidden');
+  modal.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeModal);
+  if(onOpen) onOpen(modal);
+  enhanceAll(modal);
+  const first=modal.querySelector('button,select,input'); if(first) first.focus();
+}
+function closeModal(){ veil.classList.add('hidden'); modal.innerHTML=''; }
+veil.onclick=e=>{ if(e.target===veil) closeModal(); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!veil.classList.contains('hidden')) closeModal(); });
+function openNotice(title,msg){ openModal({title,sub:'',body:`<p class="note">${esc(msg)}</p>`}); }
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- loading from the database ---------- */
+/* One request brings back everything the page draws, which matters on the
+   Always Free tier — it rate-limits concurrent requests, not data volume. */
+async function refresh(){
+  try{
+    const j = await apiGet('/state');
+    const p = typeof j.payload === 'string' ? JSON.parse(j.payload) : (j.payload || j);
+
+    DATA = {
+      time:  p.time  || [],
+      disp:  p.disp  || [],
+      leads: p.leads || [],
+      meta:  p.meta  || {}
+    };
+    BUCKETS = {};
+    Object.keys(p.buckets || {}).forEach(k=>{ BUCKETS[k] = {e: Number(p.buckets[k]) ? 1 : 0}; });
+    STAGES = {};
+    Object.keys(p.stages || {}).forEach(k=>{ STAGES[k] = Number(p.stages[k]) ? 1 : 0; });
+
+    // the database already resolved each caller to a single name
+    ALIAS = {};
+    online = true; paintPill();
+    render();
+  }catch(err){
+    online = false; paintPill();
+    if(!DATA.disp.length && !DATA.time.length && !DATA.leads.length){
+      document.getElementById('empty').classList.remove('hidden');
+      document.getElementById('empty').innerHTML =
+        '<h2>Cannot reach the database</h2>' +
+        '<p>' + esc(err.message) + '</p>' +
+        '<p class="note">If this page has just been set up, check that API_BASE at the top of the file ' +
+        'points at your ORDS endpoint, and that the schema script has been run.</p>';
+    }
+  }
+}
+
+/* ---------- boot ---------- */
+(async function boot(){
+  MAP = loadMappings();
+  restoreToken();
+  paintAdmin();
+  await refresh();
+  // a quiet re-read, so a dashboard left open on a wall screen stays current
+  setInterval(()=>{ if(!document.hidden) refresh(); }, 5*60*1000);
+})();
+</script>
